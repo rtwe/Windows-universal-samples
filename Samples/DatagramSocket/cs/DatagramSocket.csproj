@@ -91,6 +91,9 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\..\..\..\Work\EVEcoCharger\RTW.SmartHome\SMAEnergyMeter.cs">
+      <Link>SMAEnergyMeter.cs</Link>
+    </Compile>
     <Compile Include="..\..\..\SharedContent\cs\App.xaml.cs">
       <Link>App.xaml.cs</Link>
       <DependentUpon>App.xaml</DependentUpon>

@@ -35,6 +35,8 @@ namespace DatagramSocketSample
         
         private DatagramSocket listenerSocket = null;
 
+        private RTW.SmartHome.SMAEnergyMeter smaEM = new RTW.SmartHome.SMAEnergyMeter();
+
         public Scenario5()
         {
             this.InitializeComponent();
@@ -75,7 +77,7 @@ namespace DatagramSocketSample
         {
             RemoteAddressLabel.Text = "Multicast Group:";
             StartListener.Content = "Start listener and join multicast group";
-            RemoteAddress.Text = "224.3.0.5";
+            RemoteAddress.Text = "239.12.255.254";// "224.3.0.5";
             RemoteAddress.IsEnabled = false;
             SendMessageButton.IsEnabled = false;
             CloseListenerButton.IsEnabled = false;
@@ -258,13 +260,19 @@ namespace DatagramSocketSample
             {
                 // Interpret the incoming datagram's entire contents as a string.
                 uint stringLength = eventArguments.GetDataReader().UnconsumedBufferLength;
-                string receivedMessage = eventArguments.GetDataReader().ReadString(stringLength);
-
+                //string receivedMessage = eventArguments.GetDataReader().ReadString(stringLength);
+                byte[] data = new byte[600];
+                eventArguments.GetDataReader().ReadBytes(data);
+                smaEM.ParsePacket(data);
+                string receivedMessage = string.Concat(DateTime.Now, "/",
+                    smaEM.Serialnumber.ToString(), "/",
+                    smaEM.ActivePowerDrawTotal.ToString(), "/",
+                    smaEM.ActivePowerFeedInTotal.ToString());
                 NotifyUserFromAsyncThread(
                     "Received data from remote peer (Remote Address: " +
                     eventArguments.RemoteAddress.CanonicalName +
                     ", Remote Port: " +
-                    eventArguments.RemotePort + "): \"" +
+                    eventArguments.RemotePort + "):\r" + "\"" +
                      receivedMessage + "\"",
                     NotifyType.StatusMessage);
             }
