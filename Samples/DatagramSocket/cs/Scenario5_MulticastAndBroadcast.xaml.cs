@@ -21,6 +21,7 @@ using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
+using Windows.Storage;
 
 namespace DatagramSocketSample
 {
@@ -37,9 +38,27 @@ namespace DatagramSocketSample
 
         private RTW.SmartHome.SMAEnergyMeter smaEM = new RTW.SmartHome.SMAEnergyMeter();
 
-        public Scenario5()
+        StorageFile newFile;
+        byte[] data = new byte[600];
+
+        public async void CreateFile()
+        {
+            newFile = await DownloadsFolder.CreateFileAsync(DateTime.Now.ToString("yyyyMMdd-HHmm") + "_EMLog.txt");
+            
+        }
+
+        public async void WriteFile(string text)
+        {
+            if (newFile != null)
+            {
+                await FileIO.AppendTextAsync(newFile, text);
+            }
+        }
+
+    public Scenario5()
         {
             this.InitializeComponent();
+            CreateFile();
         }
 
         private void CloseListenerSocket()
@@ -254,27 +273,37 @@ namespace DatagramSocketSample
         /// </summary>
         /// <param name="socket">The socket object</param>
         /// <param name="eventArguments">The datagram event information</param>
-        void MessageReceived(DatagramSocket socket, DatagramSocketMessageReceivedEventArgs eventArguments)
+        async void MessageReceived(DatagramSocket socket, DatagramSocketMessageReceivedEventArgs eventArguments)
         {
             try
             {
                 // Interpret the incoming datagram's entire contents as a string.
                 uint stringLength = eventArguments.GetDataReader().UnconsumedBufferLength;
                 //string receivedMessage = eventArguments.GetDataReader().ReadString(stringLength);
-                byte[] data = new byte[600];
+                
                 eventArguments.GetDataReader().ReadBytes(data);
                 smaEM.ParsePacket(data);
-                string receivedMessage = string.Concat(DateTime.Now, "/",
-                    smaEM.Serialnumber.ToString(), "/",
-                    smaEM.ActivePowerDrawTotal.ToString(), "/",
+                string receivedMessage = string.Join(";", DateTime.Now.ToString("s"),
+                    smaEM.Serialnumber.ToString(),
+                    smaEM.ActivePowerDrawTotal.ToString(),
                     smaEM.ActivePowerFeedInTotal.ToString());
-                NotifyUserFromAsyncThread(
-                    "Received data from remote peer (Remote Address: " +
-                    eventArguments.RemoteAddress.CanonicalName +
-                    ", Remote Port: " +
-                    eventArguments.RemotePort + "):\r" + "\"" +
-                     receivedMessage + "\"",
-                    NotifyType.StatusMessage);
+                //string receivedMessage = string.Concat(DateTime.Now, "/",
+                //    smaEM.Serialnumber.ToString(), "/",
+                //    smaEM.ActivePowerDrawTotal.ToString(), "/",
+                //    smaEM.ActivePowerFeedInTotal.ToString());
+                if (newFile != null)
+                {
+                    await FileIO.AppendTextAsync(newFile, receivedMessage + "\r\n");
+                }
+
+                //NotifyUserFromAsyncThread(
+                //    "Received data from remote peer (Remote Address: " +
+                //    eventArguments.RemoteAddress.CanonicalName +
+                //    ", Remote Port: " +
+                //    eventArguments.RemotePort + "):\r" + "\"" +
+                //     receivedMessage + "\"",
+                //    NotifyType.StatusMessage);
+                //WriteFile(receivedMessage + "\r\n");
             }
             catch (Exception exception)
             {
