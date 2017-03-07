@@ -43,13 +43,13 @@ namespace DatagramSocketSample
         byte[] data = new byte[600];
 
         private static string currentMinute;
+        private static string currentDay;
         private string logText;
         private ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
 
         public async void CreateFile()
         {
-            newFile = await DownloadsFolder.CreateFileAsync(DateTime.Now.ToString("yyyyMMdd-HHmm") + "_EMLog.txt");
-            
+            newFile = await DownloadsFolder.CreateFileAsync(DateTime.Now.ToString("yyyyMMdd-HHmm") + "_EMLog.csv");
         }
 
         public async void WriteFile(string text)
@@ -294,6 +294,10 @@ namespace DatagramSocketSample
                     smaEM.Serialnumber.ToString(),
                     smaEM.ActivePowerDrawTotal.ToString(),
                     smaEM.ActivePowerFeedInTotal.ToString());
+                if (string.IsNullOrEmpty(currentDay))
+                {
+                    currentDay = dateTime.Substring(8, 2);
+                }
                 if (dateTime.Substring(14, 2) == currentMinute)
                 {
                     logText += receivedMessage + "\r\n";
@@ -306,6 +310,11 @@ namespace DatagramSocketSample
                         logQueue.Enqueue(logText);
                     }
                     logText = receivedMessage + "\r\n";
+                }
+                if (dateTime.Substring(8, 2) != currentDay)
+                {
+                    currentDay = dateTime.Substring(8, 2);
+                    newFile = await DownloadsFolder.CreateFileAsync(DateTime.Now.ToString("yyyyMMdd-HHmm") + "_EMLog.csv");
                 }
                 if (logQueue.Count > 0 && newFile != null)
                 {
