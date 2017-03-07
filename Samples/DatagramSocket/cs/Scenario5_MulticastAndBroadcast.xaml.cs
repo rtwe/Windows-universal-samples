@@ -22,6 +22,7 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 using Windows.Storage;
+using System.Collections.Concurrent;
 
 namespace DatagramSocketSample
 {
@@ -40,6 +41,10 @@ namespace DatagramSocketSample
 
         StorageFile newFile;
         byte[] data = new byte[600];
+
+        private static string currentMinute;
+        private string logText;
+        private ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
 
         public async void CreateFile()
         {
@@ -275,6 +280,7 @@ namespace DatagramSocketSample
         /// <param name="eventArguments">The datagram event information</param>
         async void MessageReceived(DatagramSocket socket, DatagramSocketMessageReceivedEventArgs eventArguments)
         {
+            
             try
             {
                 // Interpret the incoming datagram's entire contents as a string.
@@ -283,26 +289,38 @@ namespace DatagramSocketSample
                 
                 eventArguments.GetDataReader().ReadBytes(data);
                 smaEM.ParsePacket(data);
-                string receivedMessage = string.Join(";", DateTime.Now.ToString("s"),
+                string dateTime = DateTime.Now.ToString("s");
+                string receivedMessage = string.Join(";", dateTime,
                     smaEM.Serialnumber.ToString(),
                     smaEM.ActivePowerDrawTotal.ToString(),
                     smaEM.ActivePowerFeedInTotal.ToString());
-                //string receivedMessage = string.Concat(DateTime.Now, "/",
-                //    smaEM.Serialnumber.ToString(), "/",
-                //    smaEM.ActivePowerDrawTotal.ToString(), "/",
-                //    smaEM.ActivePowerFeedInTotal.ToString());
-                if (newFile != null)
+                if (dateTime.Substring(14, 2) == currentMinute)
                 {
-                    await FileIO.AppendTextAsync(newFile, receivedMessage + "\r\n");
+                    logText += receivedMessage + "\r\n";
+                }
+                else
+                {
+                    currentMinute = dateTime.Substring(14, 2);
+                    if (!string.IsNullOrEmpty(logText))
+                    {
+                        logQueue.Enqueue(logText);
+                    }
+                    logText = receivedMessage + "\r\n";
+                }
+                if (logQueue.Count > 0 && newFile != null)
+                {
+                    string txt;
+                    if(logQueue.TryDequeue(out txt))
+                    await FileIO.AppendTextAsync(newFile, txt);
                 }
 
-                //NotifyUserFromAsyncThread(
-                //    "Received data from remote peer (Remote Address: " +
-                //    eventArguments.RemoteAddress.CanonicalName +
-                //    ", Remote Port: " +
-                //    eventArguments.RemotePort + "):\r" + "\"" +
-                //     receivedMessage + "\"",
-                //    NotifyType.StatusMessage);
+                NotifyUserFromAsyncThread(
+                    "Received data from remote peer (Remote Address: " +
+                    eventArguments.RemoteAddress.CanonicalName +
+                    ", Remote Port: " +
+                    eventArguments.RemotePort + "):\r" + "\"" +
+                     receivedMessage + "\"",
+                    NotifyType.StatusMessage);
                 //WriteFile(receivedMessage + "\r\n");
             }
             catch (Exception exception)
